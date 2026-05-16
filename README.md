@@ -9,7 +9,7 @@ Inspired by [wt](https://github.com/agarcher/wt) (git worktree manager), adapted
 ### From source
 
 ```
-git clone <repo-url>
+git clone git@github.com:aranw/jjw.git
 cd jjw
 just build
 just install
