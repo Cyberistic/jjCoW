@@ -1,0 +1,86 @@
+#!/bin/sh
+set -eu
+
+cmd="$1"
+shift || true
+
+case "$cmd" in
+  root)
+    pwd
+    ;;
+  workspace)
+    sub="$1"
+    shift
+    case "$sub" in
+      add)
+        dest="$1"
+        shift
+        mkdir -p "$dest/.jj"
+        name=""
+        while [ "$#" -gt 0 ]; do
+          case "$1" in
+            --name)
+              name="$2"
+              shift 2
+              ;;
+            -r)
+              shift 2
+              ;;
+            *)
+              shift
+              ;;
+          esac
+        done
+        echo "$name" > "$dest/.jj/workspace-name"
+        ;;
+      forget)
+        echo "forgot $1"
+        ;;
+      list)
+        echo "default: abcdef01 12345678 main"
+        ;;
+    esac
+    ;;
+  bookmark)
+    sub="$1"
+    shift
+    case "$sub" in
+      list)
+        # No bookmarks by default. Tests can override by putting another jj earlier in PATH.
+        ;;
+      create)
+        echo "created $1"
+        ;;
+      delete)
+        echo "deleted $1"
+        ;;
+      track)
+        echo "tracked $1"
+        ;;
+    esac
+    ;;
+  log)
+    template=""
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --template)
+          template="$2"
+          shift 2
+          ;;
+        *)
+          shift
+          ;;
+      esac
+    done
+    case "$template" in
+      *'if(empty,'*) echo true ;;
+      *) ;;
+    esac
+    ;;
+  git)
+    ;;
+  *)
+    echo "unexpected jj command: $cmd" >&2
+    exit 1
+    ;;
+esac
