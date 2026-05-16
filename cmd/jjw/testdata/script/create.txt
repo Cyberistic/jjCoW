@@ -1,0 +1,8 @@
+exec jjw config init
+exec jjw create feature-x
+stderr 'Creating workspace "feature-x" from "main"'
+stderr 'Creating bookmark "feature-x"'
+stderr 'Workspace "feature-x" created successfully'
+exists workspaces/feature-x/.jj
+exists .jjw/workspaces/feature-x/created-at
+exists .jjw/workspaces/feature-x/index

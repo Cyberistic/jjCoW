@@ -1,0 +1,15 @@
+exec jjw config init
+stdout 'Created .jjw.yaml'
+exists .jjw.yaml
+
+exec jjw config get workspace_dir
+stdout '^workspaces$'
+
+exec jjw config get default_branch
+stdout '^main$'
+
+! exec jjw config init
+stderr 'already exists'
+
+exec jjw config init --force
+stdout 'Created .jjw.yaml'

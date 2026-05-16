@@ -1,0 +1,13 @@
+exec jjw config init
+mkdir nested/dir
+cd nested/dir
+exec jjw root
+stdout $WORK
+cd ../..
+
+mkdir workspaces/foo/.jj
+exec jjw cd foo
+stdout $WORK/workspaces/foo
+
+! exec jjw cd missing
+stderr 'workspace "missing" does not exist'

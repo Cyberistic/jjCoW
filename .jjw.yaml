@@ -1,0 +1,8 @@
+version: 1
+workspace_dir: workspaces
+bookmark_pattern: "{name}"
+default_branch: main
+
+# hooks:
+#   post_create:
+#     - script: ./scripts/setup.sh
