@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aranw/jjw/internal/config"
-	"github.com/aranw/jjw/internal/jj"
+	"github.com/Cyberistic/jjCoW/internal/config"
+	"github.com/Cyberistic/jjCoW/internal/jj"
 
 	"github.com/spf13/cobra"
 )

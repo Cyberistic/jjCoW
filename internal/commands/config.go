@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aranw/jjw/internal/config"
+	"github.com/Cyberistic/jjCoW/internal/config"
 
 	"github.com/spf13/cobra"
 )
 
 const defaultConfig = `# jjw configuration
-# See: https://github.com/aranw/jjw
+# See: https://github.com/Cyberistic/jjCoW
 
 version: 1
 
@@ -25,6 +25,15 @@ default_branch: main
 
 # Subdirectory containing the jj repository (use "." if .jjw.yaml is inside the repo)
 repo_dir: "."
+
+# Copy-on-write workspace cloning (APFS on macOS, reflinks on Linux).
+# Clones the working copy instead of waiting for a full jj checkout, and
+# carries over untracked files like .env. Disable to always do a full checkout.
+cow: true
+
+# Defer jj adoption of cloned files (fastest creation). When true, you must
+# run "jj sparse reset" in the new workspace before using jj commands there.
+cow_lazy: false
 `
 
 func init() {
@@ -50,7 +59,9 @@ Supported keys:
   bookmark_pattern
   default_branch
   repo_dir
-  track_remote`,
+  track_remote
+  cow
+  cow_lazy`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repoRoot, err := config.GetMainRepoRoot()
@@ -74,6 +85,10 @@ Supported keys:
 			fmt.Fprintln(cmd.OutOrStdout(), cfg.RepoDir)
 		case "track_remote":
 			fmt.Fprintln(cmd.OutOrStdout(), cfg.TrackRemote)
+		case "cow":
+			fmt.Fprintln(cmd.OutOrStdout(), cfg.Cow)
+		case "cow_lazy":
+			fmt.Fprintln(cmd.OutOrStdout(), cfg.CowLazy)
 		default:
 			return fmt.Errorf("unknown config key %q", args[0])
 		}

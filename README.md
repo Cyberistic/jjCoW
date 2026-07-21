@@ -1,3 +1,46 @@
+> **Warning: Experimental**
+>
+> This repository is experimental. Use at your own risk.
+
+
+jjcow: better alternative to Jiujitsu Workspaces. 
+- copy-on-write (workspaces do not consume extra disk until you modify files, then only the modified files take up space)
+- over ~40x faster than workspaces
+
+jj workspaces with Copy-on-Write (CoW), inspired by [rift](https://github.com/anomalyco/rift) and built for [Jiujitsu VCS](https://github.com/jj-vcs/jj). Under the hood, it's _just_ APFS `clonefile(2)` on macOS and FICLONE reflinks on Linux (Btrfs, XFS, and other reflink-capable filesystems), with jj syntactic sugar on top. 
+
+This is a fork of [jjw](https://github.com/aranw/jjw) by aranw, with just the CoW functionality added on. To get pure jjw back, disable with `jjw --no-cow`, `NO_COW=1`, or `cow: false` in `.jjw.yaml`.
+
+With `--lazy` or `cow_lazy: true` the adoption is deferred and you must run `jj sparse reset` in the workspace before using jj (or adopt only what you need with `jj sparse set --add <dir>`, whose cost is proportional to that directory). 
+
+
+## Benchmarks
+
+**~9.3 GB repo**
+
+
+```sh
+just build      
+BENCH_FILES=10000 BENCH_SIZE=1000000 ./scripts/bench-cow.sh
+```
+
+| Mode | Time | Extra disk per workspace |
+|---|---|---|
+| `cow --lazy` (clone, deferred adoption) | **1.6s** | **~3 MB** |
+| `cow` (clone + instant adoption) | **1.8s** | **~4 MB** |
+| `--no-cow` (regular workspaces) | 70.9s | ~9.6 GB |
+
+
+For full tests:
+
+```sh
+just build
+./scripts/test-cow-workflows.sh
+```
+
+Below is the original README.md from jjw, all things apply. Read [aran's blog post](https://aran.dev/posts/introducing-jjw-jj-workspace-manager/) instead.
+---
+
 # jjw - jj workspace manager
 
 A CLI for managing [jj](https://github.com/jj-vcs/jj) workspaces with lifecycle hooks. Create isolated, fully testable environments for running multiple LLM coding agents in parallel.
@@ -6,11 +49,13 @@ Inspired by [wt](https://github.com/agarcher/wt) (git worktree manager), adapted
 
 ## Installation
 
+Link your agent to this repo and tell them to figure it out.
+
 ### From source
 
 ```
-git clone git@github.com:aranw/jjw.git
-cd jjw
+git clone git@github.com:Cyberistic/jjCoW.git
+cd jjCoW
 just build
 just install
 ```

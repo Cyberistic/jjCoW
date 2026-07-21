@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/aranw/jjw/internal/config"
+	"github.com/Cyberistic/jjCoW/internal/config"
 )
 
 // Env contains environment variables passed to hooks.

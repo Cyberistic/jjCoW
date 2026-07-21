@@ -79,6 +79,8 @@ case "$cmd" in
     ;;
   git)
     ;;
+  sparse)
+    ;;
   *)
     echo "unexpected jj command: $cmd" >&2
     exit 1

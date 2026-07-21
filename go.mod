@@ -1,4 +1,4 @@
-module github.com/aranw/jjw
+module github.com/Cyberistic/jjCoW
 
 go 1.23
 

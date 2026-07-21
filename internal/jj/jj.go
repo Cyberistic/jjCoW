@@ -51,6 +51,83 @@ func WorkspaceAdd(repoRoot, destPath, name, revision string) error {
 	return cmd.Run()
 }
 
+// WorkspaceAddEmpty creates a new jj workspace with empty sparse patterns,
+// so jj writes no files to the destination. Use SparseReset afterwards to
+// make jj adopt whatever content is placed there.
+func WorkspaceAddEmpty(repoRoot, destPath, name, revision string) error {
+	args := []string{"workspace", "add", destPath, "--name", name, "--sparse-patterns", "empty"}
+	if revision != "" {
+		args = append(args, "-r", revision)
+	}
+	cmd := exec.Command("jj", args...)
+	cmd.Dir = repoRoot
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// SparseReset resets a workspace's sparse patterns to include all files and
+// updates the working copy. Files already on disk with matching content are
+// adopted without being rewritten. Output is suppressed unless it fails.
+func SparseReset(workspacePath string) error {
+	cmd := exec.Command("jj", "sparse", "reset")
+	cmd.Dir = workspacePath
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("jj sparse reset: %w\n%s", err, output)
+	}
+	return nil
+}
+
+// AdoptClonedWorkspace makes jj adopt a freshly cloned workspace in O(stat)
+// time by copying the main working copy's tree_state (file hashes, mtimes,
+// sparse patterns) into the new workspace, instead of re-hashing every file
+// via SparseReset. Because the clone preserves content, mode, and mtimes,
+// the copied state matches the files on disk; a `jj st` verifies the result
+// and any failure restores the original state so callers can fall back to
+// SparseReset.
+//
+// Requires that the clone source is the main working copy at jjRoot and that
+// a jj command (e.g. WorkspaceAddEmpty) just snapshotted it, so its
+// tree_state is current.
+func AdoptClonedWorkspace(jjRoot, workspacePath string) error {
+	if watchmanEnabled(jjRoot) {
+		return fmt.Errorf("watchman fsmonitor is enabled")
+	}
+
+	srcPath := filepath.Join(jjRoot, ".jj", "working_copy", "tree_state")
+	dstPath := filepath.Join(workspacePath, ".jj", "working_copy", "tree_state")
+
+	state, err := os.ReadFile(srcPath)
+	if err != nil {
+		return fmt.Errorf("read source tree_state: %w", err)
+	}
+	original, err := os.ReadFile(dstPath)
+	if err != nil {
+		return fmt.Errorf("read workspace tree_state: %w", err)
+	}
+	if err := os.WriteFile(dstPath, state, 0o600); err != nil {
+		return fmt.Errorf("write workspace tree_state: %w", err)
+	}
+
+	cmd := exec.Command("jj", "st")
+	cmd.Dir = workspacePath
+	if output, err := cmd.CombinedOutput(); err != nil {
+		_ = os.WriteFile(dstPath, original, 0o600)
+		return fmt.Errorf("validate adopted state: %w\n%s", err, output)
+	}
+	return nil
+}
+
+// watchmanEnabled reports whether the repository uses the watchman fsmonitor,
+// whose clock state must not be shared between working copies.
+func watchmanEnabled(repoRoot string) bool {
+	cmd := exec.Command("jj", "config", "get", "fsmonitor.watchman.register_snapshot_trigger")
+	cmd.Dir = repoRoot
+	output, err := cmd.Output()
+	return err == nil && strings.TrimSpace(string(output)) == "true"
+}
+
 // WorkspaceForget tells jj to stop tracking a workspace.
 func WorkspaceForget(repoRoot, name string) error {
 	cmd := exec.Command("jj", "workspace", "forget", name)

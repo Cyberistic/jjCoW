@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/aranw/jjw/internal/commands"
+	"github.com/Cyberistic/jjCoW/internal/commands"
 )
 
 func main() {

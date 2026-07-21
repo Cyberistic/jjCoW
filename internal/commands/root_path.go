@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/aranw/jjw/internal/config"
+	"github.com/Cyberistic/jjCoW/internal/config"
 
 	"github.com/spf13/cobra"
 )

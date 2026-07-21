@@ -22,6 +22,8 @@ type Config struct {
 	DefaultBranch   string      `yaml:"default_branch"` // Branch to compare against (e.g. "main")
 	RepoDir         string      `yaml:"repo_dir"`       // Subdirectory containing the jj repo (default ".")
 	TrackRemote     string      `yaml:"track_remote"`   // Remote to auto-track bookmarks on (e.g. "origin")
+	Cow             bool        `yaml:"cow"`            // Copy-on-write workspace cloning (default true)
+	CowLazy         bool        `yaml:"cow_lazy"`       // Adopt cloned files in the background (default true)
 	Hooks           HooksConfig `yaml:"hooks"`
 	Index           IndexConfig `yaml:"index"`
 }
@@ -55,6 +57,7 @@ func DefaultConfig() *Config {
 		BookmarkPattern: "{name}",
 		DefaultBranch:   "main",
 		RepoDir:         ".",
+		Cow:             true,
 	}
 }
 

@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/aranw/jjw/internal/jj"
+	"github.com/Cyberistic/jjCoW/internal/jj"
 )
 
 func deletionWarnings(jjRoot, repoRoot, workspacePath, workspaceName, bookmarkName, defaultBranch string) []string {

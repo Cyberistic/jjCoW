@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
-	"github.com/aranw/jjw/internal/config"
-	"github.com/aranw/jjw/internal/hooks"
-	"github.com/aranw/jjw/internal/jj"
+	"github.com/Cyberistic/jjCoW/internal/config"
+	"github.com/Cyberistic/jjCoW/internal/cow"
+	"github.com/Cyberistic/jjCoW/internal/hooks"
+	"github.com/Cyberistic/jjCoW/internal/jj"
 
 	"github.com/spf13/cobra"
 )
@@ -17,11 +19,15 @@ import (
 var (
 	createBookmark string
 	createRevision string
+	createNoCow    bool
+	createLazy     bool
 )
 
 func init() {
 	createCmd.Flags().StringVarP(&createBookmark, "bookmark", "b", "", "Use existing bookmark instead of creating a new one")
 	createCmd.Flags().StringVarP(&createRevision, "revision", "r", "", "Base revision for the new workspace (default: default_branch from config)")
+	createCmd.Flags().BoolVar(&createNoCow, "no-cow", false, "Disable copy-on-write cloning (let jj perform a full checkout)")
+	createCmd.Flags().BoolVar(&createLazy, "lazy", false, "Defer jj adoption of cloned files (fastest; you must run `jj sparse reset` in the workspace before using jj)")
 	rootCmd.AddCommand(createCmd)
 }
 
@@ -61,6 +67,11 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	jjRoot := cfg.JJRoot(repoRoot)
 	workspacePath := filepath.Join(repoRoot, cfg.WorkspaceDir, name)
 
+	// jj requires the workspace's parent directory to exist
+	if err := os.MkdirAll(filepath.Dir(workspacePath), 0o755); err != nil {
+		return fmt.Errorf("failed to create workspace directory: %w", err)
+	}
+
 	// Determine the bookmark name
 	bookmarkName := createBookmark
 	if bookmarkName == "" {
@@ -89,6 +100,12 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the workspace
+	useCow, err := cowRequested(cfg)
+	if err != nil {
+		return err
+	}
+	lazy := createLazy || cfg.CowLazy
+	adoptPending := false
 	if createBookmark != "" {
 		// Use existing bookmark as the base revision
 		localName, remote, isRemote := jj.ParseBookmarkRef(createBookmark)
@@ -104,7 +121,7 @@ func runCreate(cmd *cobra.Command, args []string) error {
 			}
 		}
 		cmd.Printf("Creating workspace %q from bookmark %q...\n", name, createBookmark)
-		if err := jj.WorkspaceAdd(jjRoot, workspacePath, name, createBookmark); err != nil {
+		if adoptPending, err = addWorkspace(cmd, jjRoot, workspacePath, name, createBookmark, cfg, useCow, lazy); err != nil {
 			return fmt.Errorf("failed to create workspace: %w", err)
 		}
 	} else {
@@ -113,7 +130,7 @@ func runCreate(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("bookmark %q already exists (use --bookmark to use an existing bookmark)", bookmarkName)
 		}
 		cmd.Printf("Creating workspace %q from %q...\n", name, revision)
-		if err := jj.WorkspaceAdd(jjRoot, workspacePath, name, revision); err != nil {
+		if adoptPending, err = addWorkspace(cmd, jjRoot, workspacePath, name, revision, cfg, useCow, lazy); err != nil {
 			return fmt.Errorf("failed to create workspace: %w", err)
 		}
 
@@ -156,6 +173,11 @@ func runCreate(cmd *cobra.Command, args []string) error {
 
 	cmd.Printf("Workspace %q created successfully\n", name)
 
+	if adoptPending {
+		cmd.Printf("\nWarning: cloned files are not adopted by jj yet (lazy mode).\n")
+		cmd.Printf("Before running jj commands in the workspace, run:\n\n    jj -R %s sparse reset\n\n", workspacePath)
+	}
+
 	// Output the path for shell wrapper
 	if cdFile := os.Getenv("JJW_CD_FILE"); cdFile != "" {
 		_ = os.WriteFile(cdFile, []byte(workspacePath+"\n"), 0600)
@@ -164,4 +186,66 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// cowRequested reports whether copy-on-write workspace cloning should be
+// used. It can be disabled by the --no-cow flag, NO_COW=1 in the
+// environment, or `cow: false` in .jjw.yaml. When requested on an
+// unsupported operating system, a clear error is returned.
+func cowRequested(cfg *config.Config) (bool, error) {
+	disabled := createNoCow || !cfg.Cow
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("NO_COW"))) {
+	case "1", "true", "yes", "on":
+		disabled = true
+	}
+	if disabled {
+		return false, nil
+	}
+	if !cow.Supported() {
+		return false, fmt.Errorf(
+			"copy-on-write workspaces are not supported on %s (supported: macOS, Linux); "+
+				"disable with --no-cow, NO_COW=1, or `cow: false` in .jjw.yaml", runtime.GOOS)
+	}
+	return true, nil
+}
+
+// addWorkspace creates the jj workspace, optionally using copy-on-write
+// cloning of the main working copy instead of a full jj checkout. The clone
+// carries over untracked and ignored files (e.g. .env) while skipping
+// regenerable artifacts (node_modules, target, dist, ...). It reports
+// whether jj still has to adopt the cloned files (lazy mode).
+func addWorkspace(cmd *cobra.Command, jjRoot, workspacePath, name, revision string, cfg *config.Config, useCow, lazy bool) (bool, error) {
+	if !useCow {
+		return false, jj.WorkspaceAdd(jjRoot, workspacePath, name, revision)
+	}
+
+	if err := jj.WorkspaceAddEmpty(jjRoot, workspacePath, name, revision); err != nil {
+		cmd.Printf("Warning: sparse-empty workspace add failed, falling back to full checkout: %v\n", err)
+		return false, jj.WorkspaceAdd(jjRoot, workspacePath, name, revision)
+	}
+
+	excludeTop := map[string]bool{
+		".jj":            true,
+		".git":           true,
+		".jjw":           true,
+		cfg.WorkspaceDir: true,
+	}
+	if err := cow.CloneDir(jjRoot, workspacePath, excludeTop); err != nil {
+		// Keep whatever jj can materialize; a sparse reset below performs a
+		// full checkout of anything the clone missed.
+		cmd.Printf("Warning: copy-on-write clone failed (%v), falling back to jj checkout\n", err)
+		lazy = false
+	}
+	if lazy {
+		return true, nil
+	}
+	// Fast path: hand the workspace the main working copy's tree_state so jj
+	// trusts the cloned files without re-hashing them. Fall back to a sparse
+	// reset (full content verification) whenever that is not possible.
+	if err := jj.AdoptClonedWorkspace(jjRoot, workspacePath); err != nil {
+		if err := jj.SparseReset(workspacePath); err != nil {
+			return false, err
+		}
+	}
+	return false, nil
 }

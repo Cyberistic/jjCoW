@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aranw/jjw/internal/jj"
+	"github.com/Cyberistic/jjCoW/internal/jj"
 )
 
 func TestFormatStatus(t *testing.T) {

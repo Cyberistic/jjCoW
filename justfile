@@ -1,5 +1,5 @@
 version := `cat VERSION 2>/dev/null || echo "dev"`
-ldflags := "-X github.com/aranw/jjw/internal/commands.Version=" + version
+ldflags := "-X github.com/Cyberistic/jjCoW/internal/commands.Version=" + version
 
 build:
     go build -ldflags "{{ldflags}}" -o bin/jjw ./cmd/jjw

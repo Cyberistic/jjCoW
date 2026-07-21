@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aranw/jjw/internal/config"
-	"github.com/aranw/jjw/internal/hooks"
-	"github.com/aranw/jjw/internal/jj"
+	"github.com/Cyberistic/jjCoW/internal/config"
+	"github.com/Cyberistic/jjCoW/internal/hooks"
+	"github.com/Cyberistic/jjCoW/internal/jj"
 
 	"github.com/spf13/cobra"
 )
