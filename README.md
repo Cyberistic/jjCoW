@@ -1,6 +1,11 @@
+<div class="title-block" style="text-align: center;" align="center">
+<p><img title="jjcow logo" src="jjcow.svg" width="320" height="320"></p>
+</div>
+
 > **Warning: Experimental**
 >
 > This repository is experimental. Use at your own risk.
+
 
 
 jjcow: better alternative to Jiujitsu Workspaces. 
@@ -39,6 +44,7 @@ just build
 ```
 
 Below is the original README.md from jjw, all things apply. Read [aran's blog post](https://aran.dev/posts/introducing-jjw-jj-workspace-manager/) instead.
+
 ---
 
 # jjw - jj workspace manager
